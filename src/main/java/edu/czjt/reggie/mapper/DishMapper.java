@@ -1,12 +1,14 @@
-package edu.czjt.reggie.mapper;
+package edu.czjt.reggie.service;
 
-import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.extension.service.IService;
+import edu.czjt.reggie.dto.DishDto;
 import edu.czjt.reggie.entity.Dish;
-import org.apache.ibatis.annotations.Mapper;
 
 /**
  * Created by wangxiaoshan
  */
-@Mapper
-public interface DishMapper extends BaseMapper<Dish> {
+public interface DishService extends IService<Dish> {
+    public DishDto getByIdWithFlavor(Long id);
+
+    public void saveWithFlavor(DishDto dishDto);
 }
