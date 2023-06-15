@@ -1,7 +1,7 @@
 package edu.czjt.reggie.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import edu.czjt.reggie.common.R;
 import edu.czjt.reggie.dto.DishDto;
@@ -14,10 +14,10 @@ import edu.czjt.reggie.service.DishService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -103,6 +103,110 @@ public class DishController {
 
         return R.success(dishDtoPage);
     }
+/**
+ * Created by wangweiwei 
+ */
 
+    /**
+     * 将dish转化为dishDto
+     *
+     * @param dish
+     * @return
+     */
+    private DishDto dish2dishDto(Dish dish) {
+        DishDto dishDto = new DishDto();
+        //BeanUtils工具类：作用是将dishDto对象的属性值复制到dish对象的属性中
+        BeanUtils.copyProperties(dish, dishDto);
+
+        Category category = categoryService.getById(dish.getCategoryId());
+
+        if (category != null) {
+            dishDto.setCategoryName(category.getName());
+        }
+
+        List<DishFlavor> dishFlavors = dishFlavorService.getFlavorsByDishId(dish.getId());
+
+        dishDto.setFlavors(dishFlavors);
+
+        return dishDto;
+    }
+
+    //新增菜品
+    @PostMapping()
+    public R<String> save(@RequestBody DishDto dishDto) {
+        //通过日志打印debug日志信息
+        log.debug("保存dish: {}", dishDto.toString());
+        // 调用dishService的saveWithFlavor方法，将dishDto对应的菜品信息保存到数据库中
+        dishService.saveWithFlavor(dishDto);
+
+        return R.success("新增菜品成功");
+    }
+
+    @PutMapping("/status/{status}")
+    public R<String> status(@PathVariable("status") Integer status, @RequestBody String ids) {
+        log.debug("修改菜品ids:{} 的状态为：{}。", ids, status);
+
+        /**
+         *将一个字符串类型的ids用逗号分隔，将其转换为一个包含多个Long类型元素的列表idList
+         *map方法接收一个function接口类型的参数，对每个元素进行处理
+         *使用Lambda表达式"Long::parseLong"表示将一个字符串转换为对应的Long类型
+         *map返回后的结果被collect处理
+         */
+        List<Long> idList = Arrays.stream(ids.split(","))
+                .map(Long::parseLong)
+                .collect(Collectors.toList());
+
+        UpdateWrapper<Dish> dishUpdateWrapper = new UpdateWrapper<>();
+        dishUpdateWrapper.in("id", idList).set("status", status);
+
+        dishService.update(dishUpdateWrapper);
+        return R.success("更新成功");
+    }
+
+    @PutMapping()
+    @Transactional
+    public R<String> update(@RequestBody DishDto dishDto) {
+        log.debug("更新dishDto:{}", dishDto.toString());
+
+        dishService.updateById(dishDto);
+
+        // 按照dishid删除dishflavor
+        dishFlavorService.removeByDishId(dishDto.getId());
+
+        /**
+         *  将dishDto对象中的flavors列表进行转换，并将结果保存到dishFlavors列表中
+         *  使用map方法将每个元素转换为DishFlavor对象
+         *  collect方法将处理后的DishFlavor对象收集到一个列表中，得到dishFlavors对象
+         */
+        List<DishFlavor> dishFlavors = dishDto.getFlavors().stream().map((item) -> {
+            item.setDishId(dishDto.getId());
+            return item;
+        }).collect(Collectors.toList());
+
+        dishFlavorService.saveBatch(dishFlavors);
+
+        // dishFlavorService.updateBatchById(dishFlavors);
+
+        return R.success("更新成功");
+    }
+
+    @DeleteMapping()
+    @Transactional
+    public R<String> delete(@RequestParam("ids") String ids) {
+        log.info("删除菜名ids：{}", ids);
+        /**
+         *将传入的ids字符串进行分隔，将每个子串解析为Long类型
+         *并删除对应的Dish对象和DishFlavor对象，最终将所有被删除的Dish对象的id保存到一个List集合中
+         */
+        List<Long> idList = Arrays.stream(ids.split(","))
+                .map(item->{
+                    Long id = Long.valueOf(item);
+                    dishFlavorService.removeByDishId(id);
+                    dishService.removeById(id);
+                    return id;
+                })
+                .collect(Collectors.toList());
+        return R.success("删除菜品成功。");
+    }
 
 }
