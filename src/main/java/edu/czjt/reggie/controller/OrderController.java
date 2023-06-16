@@ -14,6 +14,9 @@ import org.springframework.web.bind.annotation.*;
 /**
  * 订单
  */
+
+@Slf4j
+
 @RestController
 @RequestMapping("/order")
 public class OrderController {
@@ -113,3 +116,4 @@ public class OrderController {
         return R.success(orders);
     }
 }
+

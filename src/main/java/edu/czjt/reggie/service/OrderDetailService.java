@@ -6,3 +6,4 @@ import edu.czjt.reggie.entity.OrderDetail;
 public interface OrderDetailService extends IService<OrderDetail> {
 
 }
+
